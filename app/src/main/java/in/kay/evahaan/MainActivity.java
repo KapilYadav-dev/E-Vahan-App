@@ -1,15 +1,17 @@
 package in.kay.evahaan;
 
+import android.content.DialogInterface;
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
-import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.github.thunder413.datetimeutils.DateTimeUnits;
@@ -43,6 +45,9 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Initz();
+        if (!TextUtils.isEmpty(getIntent().getStringExtra("car_num"))) {
+            carNum.setText(getIntent().getStringExtra("car_num"));
+        }
         AutoCompleteLogic();
         btn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -62,6 +67,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+
     }
 
     private void AutoCompleteLogic() {
@@ -69,9 +75,9 @@ public class MainActivity extends AppCompatActivity {
         List<String> historylist = new ArrayList<>();
         for (int i = 0; i < list.size(); i++) {
             String carnum = Paper.book("History").read(Integer.toString(i));
-            historylist.add(i,carnum);
+            historylist.add(i, carnum);
         }
-        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,android.R.layout.simple_list_item_1,historylist);
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, historylist);
         carNum.setAdapter(adapter);
     }
 
@@ -282,11 +288,33 @@ public class MainActivity extends AppCompatActivity {
         List<String> historylist = new ArrayList<>();
         for (int i = 0; i < list.size(); i++) {
             String carnum = Paper.book("History").read(Integer.toString(i));
-            historylist.add(i,carnum);
+            historylist.add(i, carnum);
         }
-        for (int i=0;i<historylist.size();i++)
-        {
+        for (int i = 0; i < historylist.size(); i++) {
             Log.d("MYTAG", historylist.get(i));
         }
+    }
+
+    public void ScanImage(View view) {
+        startActivity(new Intent(this, MLImage.class));
+    }
+
+    @Override
+    public void onBackPressed() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage("Are you sure you want to exit?")
+                .setCancelable(false)
+                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        MainActivity.this.finish();
+                    }
+                })
+                .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        dialog.cancel();
+                    }
+                });
+        AlertDialog alert = builder.create();
+        alert.show();
     }
 }
