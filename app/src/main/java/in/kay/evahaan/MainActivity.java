@@ -2,7 +2,10 @@ package in.kay.evahaan;
 
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -32,7 +35,7 @@ import retrofit2.Response;
 
 public class MainActivity extends AppCompatActivity {
     CircularProgressButton btn;
-    EditText carNum;
+    AutoCompleteTextView carNum;
     TextView tvDaysLeftInsurance, tvNumber, tvpetrol, tvOwnerName, tvModel, tvClass, tvRegDate, tvExpDate, tvChasis, tvEngine, tvRegAuth;
 
     @Override
@@ -40,19 +43,15 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Initz();
+        AutoCompleteLogic();
         btn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 if (!TextUtils.isEmpty(carNum.getText().toString()) && carNum.getText().toString().length() > 7) {
                     btn.startAnimation();
-                    if (Paper.book("LocalDb").read(carNum.getText().toString().trim())==null)
-                    {
-                        Toast.makeText(MainActivity.this, "From Server", Toast.LENGTH_SHORT).show();
+                    if (Paper.book("LocalDb").read(carNum.getText().toString().trim()) == null) {
                         DoWork(carNum.getText().toString().trim());
-                    }
-                    else
-                    {
-                        Toast.makeText(MainActivity.this, "From LocalDB", Toast.LENGTH_SHORT).show();
+                    } else {
                         LoadDataFromLocalDB();
                     }
 
@@ -65,17 +64,28 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void AutoCompleteLogic() {
+        List<String> list = Paper.book("History").getAllKeys();
+        List<String> historylist = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            String carnum = Paper.book("History").read(Integer.toString(i));
+            historylist.add(i,carnum);
+        }
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,android.R.layout.simple_list_item_1,historylist);
+        carNum.setAdapter(adapter);
+    }
+
     private void LoadDataFromLocalDB() {
-        List<PaperDbModel> list= Paper.book("LocalDb").read(carNum.getText().toString().trim());
+        List<PaperDbModel> list = Paper.book("LocalDb").read(carNum.getText().toString().trim());
         String Owner_Name = list.get(0).getOwnerName();
-        String Registration_Number =list.get(0).getRegisterationNumber();
-        String Model =list.get(0).getModel();
+        String Registration_Number = list.get(0).getRegisterationNumber();
+        String Model = list.get(0).getModel();
         String Class = list.get(0).getClass_();
-        String Fuel_Type =list.get(0).getFuelType();
-        String Reg_Date =list.get(0).getRegDate();
-        String Chassis_Number =list.get(0).getChassisNumber();
-        String Engine_Number =list.get(0).getEngineNumber();
-        String Fitness_Upto =list.get(0).getFitnessUpto();
+        String Fuel_Type = list.get(0).getFuelType();
+        String Reg_Date = list.get(0).getRegDate();
+        String Chassis_Number = list.get(0).getChassisNumber();
+        String Engine_Number = list.get(0).getEngineNumber();
+        String Fitness_Upto = list.get(0).getFitnessUpto();
         String Insurance_expiry = list.get(0).getInsuranceExpiry();
         String Registering_Authority = list.get(0).getRegisteringAuthority();
         ShowUI();
@@ -86,9 +96,6 @@ public class MainActivity extends AppCompatActivity {
         List<String> list = Paper.book("History").getAllKeys();
         Integer size = list.size();
         Paper.book("History").write(Integer.toString(size), carNum.getText().toString().trim());
-        for (int i = 0; i < list.size(); i++) {
-
-        }
     }
 
     private void Initz() {
@@ -131,7 +138,6 @@ public class MainActivity extends AppCompatActivity {
                         String Insurance_expiry = object.getString("Insurance expiry");
                         String Registering_Authority = object.getString("Registering Authority");
                         ShowUI();
-                        SaveUserDataLocally(Owner_Name, Registration_Number, Model, Class, Fuel_Type, Reg_Date, Chassis_Number, Engine_Number, Fitness_Upto, Insurance_expiry, Registering_Authority);
                         DoneUIWork(Owner_Name, Registration_Number, Model, Class, Fuel_Type, Reg_Date, Chassis_Number, Engine_Number, Fitness_Upto, Insurance_expiry, Registering_Authority);
                     } else {
                         btn.stopAnimation();
@@ -154,7 +160,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void SaveUserDataLocally(String owner_name, String registration_number, String model, String aClass, String fuel_type, String reg_date, String chassis_number, String engine_number, String fitness_upto, String insurance_expiry, String registering_authority) {
+    private void SaveUserDataLocally(String owner_name, String registration_number, String model, String aClass, String fuel_type, String reg_date, String chassis_number, String engine_number, String fitness_upto, String insurance_expiry, String registering_authority, String price) {
         List<PaperDbModel> list = new ArrayList<>();
         PaperDbModel paperDbModel = new PaperDbModel();
         paperDbModel.setOwnerName(owner_name);
@@ -170,6 +176,7 @@ public class MainActivity extends AppCompatActivity {
         paperDbModel.setRegisteringAuthority(registering_authority);
         list.add(paperDbModel);
         Paper.book("LocalDb").write(carNum.getText().toString().trim(), list);
+        Toast.makeText(this, "Saving Done", Toast.LENGTH_SHORT).show();
     }
 
     private void DoneUIWork(String owner_Name, String registration_Number, String model, String aClass, String fuel_Type, String reg_Date, String chassis_Number, String engine_Number, String fitness_Upto, String insurance_expiry, String registering_Authority) {
@@ -184,15 +191,15 @@ public class MainActivity extends AppCompatActivity {
         tvInsuranceFN(insurance_expiry);
         tvCarRegFN(registration_Number);
         try {
-            PetrolPriceFN(registering_Authority);
+            PetrolPriceFN(registering_Authority, registration_Number, fuel_Type, insurance_expiry);
         } catch (IOException | JSONException e) {
             e.printStackTrace();
             Toast.makeText(this, "Error occurred!", Toast.LENGTH_SHORT).show();
         }
     }
 
-    private void PetrolPriceFN(String string) throws IOException, JSONException {
-        String result = string.substring(string.lastIndexOf(',') + 1).trim();
+    private void PetrolPriceFN(String registering_Authority, final String registration_Number, final String fuel_Type, final String expiry) throws IOException, JSONException {
+        String result = registering_Authority.substring(registering_Authority.lastIndexOf(',') + 1).trim();
         Call<List<ResponseModel>> call = RetrofitPetrolClient.getInstance().getApi().petrol(result);
         call.enqueue(new Callback<List<ResponseModel>>() {
             @Override
@@ -201,8 +208,10 @@ public class MainActivity extends AppCompatActivity {
                     List<ResponseModel> list = response.body();
                     String price = list.get(0).getProducts().get(0).getProductPrice();
                     tvpetrol.setText("₹" + price + " / L");
+                    SaveUserDataLocally(tvOwnerName.getText().toString(), registration_Number, tvModel.getText().toString(), tvClass.getText().toString(), fuel_Type, tvRegDate.getText().toString(), tvChasis.getText().toString(), tvEngine.getText().toString(), tvExpDate.getText().toString(), expiry, tvRegAuth.getText().toString(), price);
                 } else {
                     tvpetrol.setText("N/A");
+                    SaveUserDataLocally(tvOwnerName.getText().toString(), registration_Number, tvModel.getText().toString(), tvClass.getText().toString(), fuel_Type, tvRegDate.getText().toString(), tvChasis.getText().toString(), tvEngine.getText().toString(), tvExpDate.getText().toString(), expiry, tvRegAuth.getText().toString(), "N/A");
                 }
             }
 
@@ -269,6 +278,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void ShowHistory(View view) {
-
+        List<String> list = Paper.book("History").getAllKeys();
+        List<String> historylist = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            String carnum = Paper.book("History").read(Integer.toString(i));
+            historylist.add(i,carnum);
+        }
+        for (int i=0;i<historylist.size();i++)
+        {
+            Log.d("MYTAG", historylist.get(i));
+        }
     }
 }
